@@ -64,6 +64,6 @@ A Node.js/Express web application demonstrating the evolution from legacy string
 **Project 2 — Survival Classification Estimator:**
 An end-to-end scikit-learn classification pipeline implemented in a Jupyter Notebook. The pipeline loads the Titanic survival dataset, performs exploratory data analysis, preprocesses features via a ColumnTransformer (imputation, scaling, encoding), compares Logistic Regression and Decision Tree baselines with 10-fold cross-validation, tunes a Random Forest via GridSearchCV, evaluates on a held-out test set, and persists the best model with joblib.
 
-**Repository:** [https://github.com/DarkGokuZ/seminar-implementation.git](https://github.com/DarkGokuZ/seminar-implementation.git)
+**Repository:** [https://github.com/TheCodeNotTakenT-T/seminar-implementation](https://github.com/TheCodeNotTakenT-T/seminar-implementation)
 
 ---
