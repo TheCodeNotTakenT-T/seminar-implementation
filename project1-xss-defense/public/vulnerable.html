@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vulnerable Page — DOM XSS Demo</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #0f0f12;
+      color: #e4e4e7;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    /* ── Card Container ───────────────────────────────────── */
+    .card {
+      background: linear-gradient(145deg, #1a1a24, #16161e);
+      border: 1px solid rgba(255, 70, 70, 0.25);
+      border-radius: 16px;
+      max-width: 780px;
+      width: 100%;
+      padding: 2.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      color: #ff4646;
+      margin-bottom: .5rem;
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+    }
+    h1 .icon { font-size: 1.5rem; }
+
+    .subtitle {
+      color: #888;
+      font-size: .9rem;
+      margin-bottom: 1.5rem;
+    }
+
+    h2 {
+      font-size: 1.15rem;
+      color: #ff8a8a;
+      margin: 1.5rem 0 .75rem;
+      border-bottom: 1px solid rgba(255,70,70,.15);
+      padding-bottom: .4rem;
+    }
+
+    /* ── Badge ────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      background: rgba(255,70,70,.15);
+      color: #ff6b6b;
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      padding: .3rem .7rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+
+    /* ── Output Zones ─────────────────────────────────────── */
+    .output-zone {
+      background: #111118;
+      border: 1px dashed rgba(255,70,70,.3);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-top: .5rem;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: .88rem;
+      color: #ccc;
+      word-break: break-all;
+      min-height: 48px;
+    }
+
+    /* ── Filter Log ───────────────────────────────────────── */
+    #filter-log {
+      margin-top: 1rem;
+      padding: .85rem 1rem;
+      background: rgba(255,200,50,.07);
+      border-left: 3px solid #ffcc33;
+      border-radius: 0 8px 8px 0;
+      font-size: .82rem;
+      color: #ccbb66;
+    }
+
+    /* ── Code / Pre Blocks ────────────────────────────────── */
+    pre {
+      background: #0d0d14;
+      border: 1px solid #2a2a36;
+      border-radius: 8px;
+      padding: 1rem 1.2rem;
+      overflow-x: auto;
+      font-size: .82rem;
+      line-height: 1.6;
+      color: #aaa;
+      margin-top: .5rem;
+    }
+    code { color: #ff9a9a; }
+
+    /* ── Navigation Link ──────────────────────────────────── */
+    .nav-link {
+      display: inline-block;
+      margin-top: 1rem;
+      padding: .6rem 1.4rem;
+      background: linear-gradient(135deg, #1b6b1b, #1a8c1a);
+      color: #fff;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: .85rem;
+      font-weight: 600;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .nav-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 18px rgba(26,140,26,.35);
+    }
+
+    /* ── Utility ──────────────────────────────────────────── */
+    .muted { color: #666; font-size: .78rem; margin-top: .6rem; }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SECTION 1 — Header & Explanation
+       ═══════════════════════════════════════════════════════ -->
+  <div class="card">
+    <span class="badge">⚠ Vulnerable Demo</span>
+    <h1><span class="icon">🛑</span> DOM XSS — Vulnerable Page</h1>
+    <p class="subtitle">
+      This page reads <code>id</code> and <code>name</code> from the URL query
+      string and writes them directly into the DOM via
+      <code>document.write()</code> — one of the most dangerous browser sinks.
+    </p>
+
+    <h2>1 ▸ Reflected Output (document.write sink)</h2>
+    <p style="color:#999; font-size:.84rem; margin-bottom:.5rem;">
+      The parameters are written here <em>after</em> passing through the
+      legacy filter below.
+    </p>
+    <div class="output-zone" id="sink-output">
+      <!-- document.write() output lands here -->
+    </div>
+
+    <div id="filter-log"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SECTION 2 — Legacy Filter Explanation
+       ═══════════════════════════════════════════════════════ -->
+  <div class="card">
+    <h2>2 ▸ Legacy String-Matching Filter</h2>
+    <p style="color:#999; font-size:.84rem;">
+      A naïve <code>sanitize()</code> function scans for the <strong>contiguous</strong>
+      string <code>&lt;script&gt;</code> (case-insensitive) and replaces it with
+      an empty string.  This mirrors real-world WAF rules that rely on regex
+      blocklists.
+    </p>
+    <pre><code>function legacyFilter(input) {
+  // Case-insensitive match for the literal tag &lt;script&gt;
+  return input.replace(/&lt;script\b[^&gt;]*&gt;/gi, "")
+              .replace(/&lt;\/script&gt;/gi, "");
+}</code></pre>
+    <p class="muted">
+      ✗ This filter is <strong>trivially bypassable</strong> — see Section 3.
+    </p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SECTION 3 — Bypass Instructions
+       ═══════════════════════════════════════════════════════ -->
+  <div class="card">
+    <h2>3 ▸ Double-Injection Bypass Technique</h2>
+    <p style="color:#999; font-size:.84rem; margin-bottom:.75rem;">
+      Because <code>document.write()</code> concatenates <strong>two</strong>
+      separate URL parameters, an attacker can <em>split</em> the blocked tag
+      across them.  The filter inspects each parameter in isolation, sees no
+      complete <code>&lt;script&gt;</code> tag in either one, and lets the
+      payload through.  After concatenation, the tag reassembles.
+    </p>
+    <pre><code>// ──────────────────────────────────────────────────────────
+// DOUBLE-INJECTION BYPASS PAYLOAD
+// ──────────────────────────────────────────────────────────
+//
+// Craft the URL so each parameter holds HALF of the tag:
+//
+//   ?id=&lt;scr&name=ipt&gt;alert('XSS')&lt;/script&gt;
+//
+// After the filter runs on each value independently:
+//   legacyFilter("&lt;scr")          → "&lt;scr"       (no match)
+//   legacyFilter("ipt&gt;alert(…)")  → "ipt&gt;alert(…)" (no match)
+//
+// document.write() concatenates them:
+//   "&lt;scr" + "ipt&gt;alert('XSS')&lt;/script&gt;"
+//   = "&lt;script&gt;alert('XSS')&lt;/script&gt;"   ← Executes!
+//
+// Full test URL (paste into browser address bar):
+//   http://localhost:3000/vulnerable?id=&lt;scr&name=ipt&gt;alert('XSS')&lt;/script&gt;
+// ──────────────────────────────────────────────────────────</code></pre>
+
+    <a class="nav-link" href="/secure?id=42&name=Akarsh">
+      → View the Secure Version (Trusted Types)
+    </a>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SCRIPT — Vulnerable Sink Execution
+       ═══════════════════════════════════════════════════════ -->
+  <script>
+    /**
+     * legacyFilter()
+     * ──────────────
+     * Simulates a real-world WAF / client-side sanitizer that only blocks
+     * the *contiguous* string `<script>`.  Anything that doesn't match
+     * this exact pattern slips through.
+     */
+    function legacyFilter(input) {
+      const original = input;
+      const filtered = input
+        .replace(/<script\b[^>]*>/gi, "")   // opening tag
+        .replace(/<\/script>/gi, "");        // closing tag
+
+      return { filtered, blocked: filtered !== original };
+    }
+
+    // ── Read URL parameters ──────────────────────────────────
+    const params = new URLSearchParams(window.location.search);
+    const rawId   = params.get("id")   || "";
+    const rawName = params.get("name") || "";
+
+    // ── Run legacy filter on EACH parameter independently ────
+    const idResult   = legacyFilter(rawId);
+    const nameResult = legacyFilter(rawName);
+
+    // ── Log filter decisions ─────────────────────────────────
+    const logEl = document.getElementById("filter-log");
+    logEl.innerHTML =
+      `<strong>Filter Log:</strong><br>` +
+      `  id   → ${idResult.blocked ? "🚫 Blocked & stripped" : "✅ Passed"}: <code>${escapeForLog(rawId)}</code><br>` +
+      `  name → ${nameResult.blocked ? "🚫 Blocked & stripped" : "✅ Passed"}: <code>${escapeForLog(rawName)}</code>`;
+
+    /**
+     * ═══════════════════════════════════════════════════════════
+     *  THE VULNERABLE SINK
+     * ═══════════════════════════════════════════════════════════
+     *
+     * document.write() concatenates BOTH filtered outputs into the
+     * DOM.  If an attacker splits a <script> tag across `id` and
+     * `name`, the filter misses it and the reassembled tag executes.
+     */
+    const payload = idResult.filtered + nameResult.filtered;
+
+    // Write into the designated output zone
+    const sinkOutput = document.getElementById("sink-output");
+    sinkOutput.innerHTML = payload;   // Simulating document.write behaviour
+
+    // Also call actual document.write for demonstration (open console)
+    // Uncomment the line below to use the real document.write sink:
+    // document.write(payload);
+
+    /** Utility: escape HTML for safe display in the filter log */
+    function escapeForLog(str) {
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

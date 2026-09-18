@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Secure Page — Trusted Types Defense</title>
+
+  <!-- ── DOMPurify CDN ────────────────────────────────────── -->
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #0f0f12;
+      color: #e4e4e7;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    /* ── Card Container ───────────────────────────────────── */
+    .card {
+      background: linear-gradient(145deg, #1a241a, #161e16);
+      border: 1px solid rgba(70, 255, 70, 0.2);
+      border-radius: 16px;
+      max-width: 780px;
+      width: 100%;
+      padding: 2.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      color: #4ade80;
+      margin-bottom: .5rem;
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+    }
+    h1 .icon { font-size: 1.5rem; }
+
+    .subtitle {
+      color: #888;
+      font-size: .9rem;
+      margin-bottom: 1.5rem;
+      line-height: 1.55;
+    }
+
+    h2 {
+      font-size: 1.15rem;
+      color: #86efac;
+      margin: 1.5rem 0 .75rem;
+      border-bottom: 1px solid rgba(70,255,70,.12);
+      padding-bottom: .4rem;
+    }
+
+    /* ── Badge ────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      background: rgba(70,255,70,.12);
+      color: #4ade80;
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      padding: .3rem .7rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+
+    /* ── Output Zones ─────────────────────────────────────── */
+    .output-zone {
+      background: #111118;
+      border: 1px solid rgba(70,255,70,.2);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-top: .5rem;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: .88rem;
+      color: #ccc;
+      word-break: break-all;
+      min-height: 48px;
+    }
+    .output-zone.safe {
+      border-color: rgba(70,255,70,.35);
+      background: rgba(70,255,70,.04);
+    }
+
+    /* ── Step Indicator ───────────────────────────────────── */
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: .85rem;
+      margin: .75rem 0;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 28px;
+      height: 28px;
+      background: rgba(70,255,70,.15);
+      color: #4ade80;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .78rem;
+      font-weight: 700;
+    }
+    .step-text {
+      color: #bbb;
+      font-size: .85rem;
+      line-height: 1.55;
+    }
+
+    /* ── Code / Pre Blocks ────────────────────────────────── */
+    pre {
+      background: #0d0d14;
+      border: 1px solid #2a2a36;
+      border-radius: 8px;
+      padding: 1rem 1.2rem;
+      overflow-x: auto;
+      font-size: .82rem;
+      line-height: 1.6;
+      color: #aaa;
+      margin-top: .5rem;
+    }
+    code { color: #86efac; }
+
+    /* ── CSP Log ──────────────────────────────────────────── */
+    #csp-log {
+      margin-top: 1rem;
+      padding: .85rem 1rem;
+      background: rgba(70,200,255,.06);
+      border-left: 3px solid #38bdf8;
+      border-radius: 0 8px 8px 0;
+      font-size: .82rem;
+      color: #7dd3fc;
+    }
+
+    /* ── Navigation Link ──────────────────────────────────── */
+    .nav-link {
+      display: inline-block;
+      margin-top: 1rem;
+      padding: .6rem 1.4rem;
+      background: linear-gradient(135deg, #6b1b1b, #8c1a1a);
+      color: #fff;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: .85rem;
+      font-weight: 600;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .nav-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 18px rgba(140,26,26,.35);
+    }
+
+    /* ── Utility ──────────────────────────────────────────── */
+    .muted { color: #666; font-size: .78rem; margin-top: .6rem; }
+    .highlight { color: #4ade80; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SECTION 1 — Header & How It Works
+       ═══════════════════════════════════════════════════════ -->
+  <div class="card">
+    <span class="badge">🛡 Secure — Trusted Types</span>
+    <h1><span class="icon">✅</span> DOM XSS — Secure Page</h1>
+    <p class="subtitle">
+      This page enforces the browser's <strong>Trusted Types</strong> API via
+      a <code>Content-Security-Policy</code> header set by the server.  Even
+      if an attacker injects a malicious payload through the URL, the browser
+      <em>refuses</em> to pass raw strings to dangerous sinks like
+      <code>document.write()</code> or <code>innerHTML</code>.
+    </p>
+
+    <h2>How the Defense Works</h2>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text">
+        The server sends <code>Content-Security-Policy:
+        require-trusted-types-for 'script'; trusted-types dompurify-policy</code>.
+        This tells the browser to <strong>block</strong> any raw string written
+        to an injection sink.
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text">
+        A single, named <strong>Trusted Types policy</strong>
+        (<code>dompurify-policy</code>) is registered.  Its
+        <code>createHTML()</code> callback runs <strong>DOMPurify.sanitize()</strong>
+        on every input before returning a <code>TrustedHTML</code> object.
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-text">
+        When the page attempts <code>element.innerHTML = policy.createHTML(userInput)</code>,
+        the browser verifies the value is a <code>TrustedHTML</code> instance and
+        permits the write.  Malicious tags like <code>&lt;script&gt;</code>,
+        <code>&lt;img onerror&gt;</code>, etc. are <span class="highlight">stripped
+        by DOMPurify</span> inside the policy.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SECTION 2 — Live Output
+       ═══════════════════════════════════════════════════════ -->
+  <div class="card">
+    <h2>Sanitized Output</h2>
+    <p style="color:#999; font-size:.84rem; margin-bottom:.5rem;">
+      The URL parameters are processed through the Trusted Types policy.
+      Any dangerous markup is stripped before reaching the DOM.
+    </p>
+    <div class="output-zone safe" id="safe-output">
+      <!-- Sanitized content renders here -->
+    </div>
+
+    <div id="csp-log"></div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SECTION 3 — Policy Source Code
+       ═══════════════════════════════════════════════════════ -->
+  <div class="card">
+    <h2>Trusted Types Policy — Source</h2>
+    <pre><code>// Register the ONLY allowed policy
+const policy = trustedTypes.createPolicy("dompurify-policy", {
+  createHTML: (unsafeString) =&gt; {
+    // DOMPurify strips all dangerous tags/attributes
+    return DOMPurify.sanitize(unsafeString, {
+      ALLOWED_TAGS: ["b", "i", "em", "strong", "span", "p", "br"],
+      ALLOWED_ATTR: ["class", "id"],
+    });
+  },
+});
+
+// Usage — the browser enforces that innerHTML receives TrustedHTML
+element.innerHTML = policy.createHTML(userInput);</code></pre>
+    <p class="muted">
+      Try the same bypass URL:
+      <code>/secure?id=&lt;scr&amp;name=ipt&gt;alert('XSS')&lt;/script&gt;</code>
+      — the script tag will be <strong>completely stripped</strong>.
+    </p>
+
+    <a class="nav-link" href="/vulnerable?id=42&name=Akarsh">
+      ← Back to Vulnerable Page
+    </a>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SCRIPT — Trusted Types Policy & Secure Rendering
+       ═══════════════════════════════════════════════════════ -->
+  <script>
+    /**
+     * ═══════════════════════════════════════════════════════════
+     *  TRUSTED TYPES POLICY  —  "dompurify-policy"
+     * ═══════════════════════════════════════════════════════════
+     *
+     *  • trustedTypes.createPolicy() registers a named policy.
+     *  • The CSP header restricts the page to ONLY this policy name.
+     *  • createHTML() is invoked whenever we need to assign HTML to
+     *    a sink (innerHTML, document.write, etc.).
+     *  • DOMPurify performs the actual sanitization inside the
+     *    policy callback, producing a safe HTML fragment.
+     */
+
+    let policy;
+
+    if (typeof trustedTypes !== "undefined") {
+      policy = trustedTypes.createPolicy("dompurify-policy", {
+        createHTML: (unsafeString) => {
+          return DOMPurify.sanitize(unsafeString, {
+            ALLOWED_TAGS: ["b", "i", "em", "strong", "span", "p", "br", "code"],
+            ALLOWED_ATTR: ["class", "id"],
+          });
+        },
+      });
+    } else {
+      // Fallback for browsers that don't support Trusted Types yet
+      policy = {
+        createHTML: (unsafeString) =>
+          DOMPurify.sanitize(unsafeString, {
+            ALLOWED_TAGS: ["b", "i", "em", "strong", "span", "p", "br", "code"],
+            ALLOWED_ATTR: ["class", "id"],
+          }),
+      };
+    }
+
+    // ── Read URL parameters ──────────────────────────────────
+    const params = new URLSearchParams(window.location.search);
+    const rawId   = params.get("id")   || "";
+    const rawName = params.get("name") || "";
+
+    // ── Concatenate (same as vulnerable page) ────────────────
+    const rawPayload = rawId + rawName;
+
+    // ── Sanitize through Trusted Types policy ────────────────
+    const safeHTML = policy.createHTML(rawPayload);
+
+    // ── Render to DOM (the browser permits this because safeHTML
+    //    is a TrustedHTML object, not a raw string) ────────────
+    const outputEl = document.getElementById("safe-output");
+    outputEl.innerHTML = safeHTML;
+
+    // ── Log what happened ────────────────────────────────────
+    const logEl = document.getElementById("csp-log");
+    const stripped = (rawPayload !== safeHTML.toString());
+
+    logEl.innerHTML =
+      `<strong>Trusted Types Log:</strong><br>` +
+      `  Raw input  → <code>${escapeForLog(rawPayload)}</code><br>` +
+      `  Sanitized  → <code>${escapeForLog(safeHTML.toString())}</code><br>` +
+      `  Status     → ${stripped
+          ? "🧹 <span style='color:#f87171'>Dangerous markup removed</span>"
+          : "✅ <span style='color:#4ade80'>Input was already safe</span>"}`;
+
+    /** Utility: escape HTML for safe display in the log */
+    function escapeForLog(str) {
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

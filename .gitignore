@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# Model artifacts
+*.joblib
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
